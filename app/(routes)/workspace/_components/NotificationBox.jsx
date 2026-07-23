@@ -62,6 +62,8 @@ function NotificationBox({ children, params }) {
         );
         snap.forEach((d) => {
           const data = d.data();
+          // Don't link to deleted (trashed) documents — they're inaccessible.
+          if (data.deletedAt) return;
           map[data.id] = `/workspace/${data.workspaceId}/${data.id}`;
         });
       }
@@ -85,7 +87,9 @@ function NotificationBox({ children, params }) {
           </span>
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[420px] max-h-[70vh] overflow-y-auto p-0">
+      {/* Match the Liveblocks card background (#111827 = gray-900) so there are
+          no darker gaps/seams showing between cards in dark mode. */}
+      <PopoverContent className="w-[420px] max-h-[70vh] overflow-y-auto p-0 dark:bg-gray-900 dark:border-gray-800">
         {inboxNotifications.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-500">
             No notifications yet.
@@ -93,7 +97,10 @@ function NotificationBox({ children, params }) {
         ) : (
           <InboxNotificationList>
             {inboxNotifications.map((notification) => (
-              <div key={notification.id} className="border-b last:border-b-0">
+              <div
+                key={notification.id}
+                className="border-b border-black/5 dark:border-white/10 last:border-b-0"
+              >
                 {/* Whole card links to the document (it renders as an <a>). */}
                 <InboxNotification
                   inboxNotification={notification}
@@ -102,6 +109,8 @@ function NotificationBox({ children, params }) {
 
                 {notification.kind === "thread" &&
                   (replyingTo === notification.id ? (
+                    // Inline (same background as the popover) so it blends in
+                    // instead of exposing darker gaps around a distinct panel.
                     <div className="px-3 pb-3">
                       {/* Header with a close (X) button to cancel replying. */}
                       <div className="flex items-center justify-between mb-1">

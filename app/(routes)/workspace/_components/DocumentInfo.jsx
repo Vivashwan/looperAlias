@@ -12,7 +12,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 function DocumentInfo({ params }) {
-  const [coverImage, setCoverImage] = useState("/cover.png");
+  // null = not loaded yet. Starting at the default "/cover.png" made a custom
+  // cover flash the default image for an instant on every load.
+  const [coverImage, setCoverImage] = useState(null);
   const [emoji, setEmoji] = useState();
   const [documentInfo, setDocumentInfo] = useState();
   const router = useRouter();
@@ -23,18 +25,24 @@ function DocumentInfo({ params }) {
 
       // Real-time listener for document changes
       const unsubscribe = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setDocumentInfo(data);
-          setEmoji(data?.emoji);
-          if (data?.coverImage) {
-            setCoverImage(data.coverImage);
-          }
-        } else {
-          // Document has been deleted
-          toast.error("Document has been deleted!");
-          router.push("/workspace/" + params?.workspaceid); // Redirect to workspace or dashboard
+        const data = docSnap.data();
+        // Guard against URLs that don't resolve to a real, live document —
+        // fabricated/guessed ids, bookmarks to removed docs, old notification
+        // links, etc.
+        if (!docSnap.exists()) {
+          toast.error("Document not found.");
+          router.push("/dashboard");
+          return;
         }
+        if (data?.deletedAt) {
+          toast.error("This document has been deleted.");
+          router.push("/dashboard");
+          return;
+        }
+        setDocumentInfo(data);
+        setEmoji(data?.emoji);
+        // Fall back to the default only once we know the doc has no cover.
+        setCoverImage(data?.coverImage || "/cover.png");
       });
 
       return () => unsubscribe(); // Clean up the listener on unmount
@@ -71,17 +79,19 @@ function DocumentInfo({ params }) {
           >
             Change Cover
           </h2>
-          <div className="relative w-full h-[200px] group-hover:opacity-40">
-            {/* `fill` + `sizes` lets Next serve a full-width source instead of
-                upscaling a 400px one, which made the banner look blurry. */}
-            <Image
-              src={highResCover(coverImage)}
-              alt="Document cover"
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-            />
+          <div className="relative w-full h-[200px] group-hover:opacity-40 bg-gray-100 dark:bg-gray-800">
+            {/* Render nothing until the cover is known (avoids flashing the
+                default). `fill` + `sizes` serves a full-width source. */}
+            {coverImage && (
+              <Image
+                src={highResCover(coverImage)}
+                alt="Document cover"
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover"
+              />
+            )}
           </div>
         </div>
       </CoverPicker>
