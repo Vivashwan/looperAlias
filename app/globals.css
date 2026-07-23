@@ -72,30 +72,92 @@ h6.ce-header{
     word-break: break-word;
 }
 
-/* Dark mode: EditorJS hard-codes near-black text and icons, which are invisible
-   on a dark background. Lift the content and its floating toolbars/popovers. */
+/* Dark mode: EditorJS hard-codes near-black text/icons and white popovers,
+   which are invisible on a dark background. Theme the content, the + / tune
+   toolbars, and — most visibly — the block-menu popover (its container, each
+   block's title/shortcut/icon, hover state, and the search field). */
 .dark .codex-editor,
 .dark .cdx-block,
 .dark .ce-block a {
     color: #e5e7eb;
 }
+/* The + and tune buttons ship a white background with a dark icon. In dark
+   mode we lighten the icon, so the white/near-white background (and its
+   #eff2f5 hover) made the icon vanish. Give them a dark button surface too. */
 .dark .ce-toolbar__plus,
 .dark .ce-toolbar__settings-btn {
+    background-color: #1f2937;
+    border-color: #374151;
     color: #e5e7eb;
 }
-.dark .ce-popover,
+.dark .ce-toolbar__plus:hover,
+.dark .ce-toolbar__settings-btn:hover {
+    background-color: #374151;
+    color: #ffffff;
+}
+
+/* Popover surfaces (block menu, inline toolbar, conversion menu, tunes) */
+.dark .ce-popover__container,
 .dark .ce-inline-toolbar,
 .dark .ce-conversion-toolbar,
 .dark .ce-settings {
     background-color: #1f2937;
-    color: #e5e7eb;
     border-color: #374151;
+    color: #e5e7eb;
 }
+
+/* Each block option's label + shortcut hint + nested-menu header */
+.dark .ce-popover-item__title,
+.dark .ce-popover-item__secondary-title,
+.dark .ce-popover-header__text,
+.dark .ce-popover__nothing-found-message {
+    color: #e5e7eb;
+}
+
+/* The little icon tile next to each option */
+.dark .ce-popover-item__icon {
+    background-color: #374151;
+    color: #e5e7eb;
+}
+
+/* Hover / keyboard focus on an option */
 .dark .ce-popover-item:hover,
-.dark .ce-popover__item:hover,
+.dark .ce-popover-item--focused,
 .dark .ce-inline-tool:hover,
 .dark .ce-conversion-tool:hover {
     background-color: #374151;
+}
+
+/* The search box at the top of the block menu */
+.dark .cdx-search-field {
+    background-color: #111827;
+    border-color: #374151;
+}
+.dark .cdx-search-field__input {
+    color: #e5e7eb;
+}
+.dark .cdx-search-field__input::placeholder {
+    color: #9ca3af;
+}
+
+/* Selecting a block (e.g. clicking the +) highlights it with a hard-coded
+   light blue (#e1f2ff), which reads as a glaring white line in dark mode. */
+.dark .codex-editor {
+    --selectionColor: #2b3648;
+}
+.dark .ce-block--selected .ce-block__content {
+    background-color: #2b3648;
+}
+
+/* Text selection (double-click / drag): EditorJS highlights it light blue
+   (#d4ecff), which hides the white text in dark mode. Use a dark highlight. */
+.dark .codex-editor ::selection {
+    background-color: #3b4a63;
+    color: #ffffff;
+}
+.dark .codex-editor ::-moz-selection {
+    background-color: #3b4a63;
+    color: #ffffff;
 }
 
 @layer base {

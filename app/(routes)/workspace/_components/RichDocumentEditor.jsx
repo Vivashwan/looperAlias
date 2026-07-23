@@ -26,6 +26,33 @@ import { toast } from "sonner";
 // How many snapshots of undo history to keep per document.
 const HISTORY_LIMIT = 100;
 
+// Block types the editor has tools registered for. Saved content that contains
+// any other type (e.g. an AI-generated block from before a tool existed) would
+// otherwise crash EditorJS's render with "can't access property 'name'".
+const REGISTERED_BLOCK_TYPES = new Set([
+  "paragraph",
+  "header",
+  "list",
+  "checklist",
+  "table",
+  "code",
+  "quote",
+  "alert",
+  "delimiter",
+  "image",
+  "embed",
+]);
+
+/** Drop any blocks whose type has no registered tool, so render can't crash. */
+function safeBlocks(output) {
+  const blocks = (output?.blocks ?? []).filter((block) => {
+    const ok = REGISTERED_BLOCK_TYPES.has(block?.type);
+    if (!ok) console.warn(`Dropping unknown saved block type "${block?.type}"`);
+    return ok;
+  });
+  return { ...output, blocks };
+}
+
 function RichDocumentEditor({ params }) {
   const editorRef = useRef(null);
   const { user } = useUser();
@@ -144,7 +171,7 @@ function RichDocumentEditor({ params }) {
           !isFetched.current
         ) {
           if (data?.editedBy && data?.output) {
-            const parsed = JSON.parse(data.output);
+            const parsed = safeBlocks(JSON.parse(data.output));
             editorRef.current?.render(parsed).then(() => {
               // Seed history with the loaded content so the first Ctrl+Z has a
               // baseline to return to instead of an empty editor.
