@@ -8,16 +8,17 @@ import {
 } from "@/app/_components/ClerkThemed";
 
 function DocumentHeader() {
+  // Three equal columns so the org switcher sits centered. The left column
+  // holds a spacer that clears the mobile sidebar hamburger (fixed top-left).
   return (
-    <div className="flex justify-between items-center gap-3 p-3 px-7 shadow-md">
-      {/* Left: org switcher. The w-10 spacer keeps it clear of the mobile
-          sidebar hamburger, which is fixed at the top-left. */}
-      <div className="flex items-center">
+    <div className="flex items-center gap-3 p-3 px-7 shadow-md">
+      <div className="flex-1 flex items-center">
         <div className="w-10 md:w-0" />
+      </div>
+      <div className="flex-1 flex justify-center">
         <ThemedOrganizationSwitcher />
       </div>
-      {/* Right: theme toggle, collaborator avatars, then the account button. */}
-      <div className="flex items-center gap-3">
+      <div className="flex-1 flex justify-end items-center gap-3">
         <ThemeToggle />
         <Avatars />
         <ThemedUserButton />
