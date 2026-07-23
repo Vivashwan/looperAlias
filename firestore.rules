@@ -1,0 +1,91 @@
+rules_version = '2';
+
+// =============================================================================
+// DEPLOY ONLY AFTER THE FIREBASE AUTH BRIDGE IS WORKING.
+//
+// These rules assume every request is authenticated as a Firebase user whose
+// token carries `email` and `org_id` claims (minted by Clerk — see setup below).
+// If you deploy this while the app is still connecting to Firestore
+// anonymously, EVERY read/write will be denied and the app will appear broken.
+//
+// SETUP (one time):
+//   1. Firebase console → Authentication → get started (no providers needed;
+//      custom-token sign-in is enough).
+//   2. Firebase console → Project settings → Service accounts →
+//      "Generate new private key". Keep the JSON safe.
+//   3. Clerk dashboard → JWT Templates → New template → "Firebase".
+//        - Name it EXACTLY: integration_firebase
+//        - Paste the Firebase service-account JSON where prompted.
+//        - Add these claims:
+//            email   →  {{user.primary_email_address}}
+//            org_id  →  {{org.id}}
+//   4. Run the app signed in. The browser console should NOT show
+//      "[FirebaseAuthBridge] Firebase sign-in skipped". If it's silent, the
+//      bridge is working.
+//   5. THEN deploy:  firebase deploy --only firestore:rules
+//      (or paste this into Firebase console → Firestore → Rules).
+//
+// Ownership model (matches the app): a workspace's `orgId` is either the active
+// Clerk org id, or — for personal accounts — the creator's email. A user can
+// reach a workspace when its orgId equals their token's org_id or email.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function email() {
+      return request.auth.token.email;
+    }
+
+    function orgId() {
+      return request.auth.token.org_id;
+    }
+
+    // True when `owner` (a workspace's orgId) belongs to the current user.
+    function ownsScope(owner) {
+      return owner == email() || (orgId() != '' && owner == orgId());
+    }
+
+    function workspaceOwner(workspaceId) {
+      return get(/databases/$(database)/documents/Workspace/$(workspaceId)).data.orgId;
+    }
+
+    // ---- Workspaces ----
+    match /Workspace/{workspaceId} {
+      allow read, update, delete: if signedIn() && ownsScope(resource.data.orgId);
+      allow create: if signedIn() && ownsScope(request.resource.data.orgId);
+    }
+
+    // ---- Documents (metadata). Reachable if their workspace is reachable. ----
+    match /workspaceDocuments/{documentId} {
+      allow read, delete: if signedIn()
+        && ownsScope(workspaceOwner(string(resource.data.workspaceId)));
+      allow create, update: if signedIn()
+        && ownsScope(workspaceOwner(string(request.resource.data.workspaceId)));
+    }
+
+    // ---- Document content. Keyed by document id; authorize via its document. ----
+    match /documentOutput/{documentId} {
+      function docWorkspaceId() {
+        return string(
+          get(/databases/$(database)/documents/workspaceDocuments/$(documentId)).data.workspaceId
+        );
+      }
+      allow read, write: if signedIn()
+        && ownsScope(workspaceOwner(docWorkspaceId()));
+    }
+
+    // ---- User directory (for resolving @mentions to names/avatars). ----
+    match /LooperAliasUsers/{userEmail} {
+      allow read: if signedIn();
+      // You may only write your own record.
+      allow write: if signedIn() && userEmail == email();
+    }
+
+    // Everything else is denied by default.
+  }
+}

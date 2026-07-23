@@ -7,10 +7,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { chatSession } from "@/config/GoogleAIModel";
+import { toast } from "sonner";
 
 function GenerateAITemplate({ setGenerateAIOutput }) {
   const [open, setOpen] = useState(false); // Handles dialog state
@@ -18,20 +17,28 @@ function GenerateAITemplate({ setGenerateAIOutput }) {
   const [loading, setLoading] = useState(false);
 
   const GenerateFromAI = async () => {
+    if (loading) return;
     setLoading(true);
-    const PROMPT = "Generate template for editor.js in JSON for " + userInput;
-    const result = await chatSession.sendMessage(PROMPT);
-
     try {
-      const output = JSON.parse(result.response.text());
+      const response = await fetch("/api/generate-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: userInput }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const { output } = await response.json();
       setGenerateAIOutput(output);
+      setOpen(false); // Close dialog after generating the template
     } catch (e) {
-      console.error("Failed to parse AI response:", e);
+      console.error("Failed to generate AI template:", e);
+      toast.error("Couldn't generate the template. Please try again.");
+    } finally {
       setLoading(false);
     }
-
-    setLoading(false);
-    setOpen(false); // Close dialog after generating the template
   };
 
   return (
@@ -49,31 +56,32 @@ function GenerateAITemplate({ setGenerateAIOutput }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Generate template using AI</DialogTitle>
+            {/* DialogDescription renders a <p>, so it must hold text only —
+                block elements (input, div) inside it are invalid HTML and
+                cause a hydration error. Keep them as siblings below. */}
             <DialogDescription>
-              <h2 className="mt-5">Enter your prompt below</h2>
-              <Input
-                placeholder="Ex. template for grocery items"
-                onChange={(event) => setUserInput(event?.target.value)}
-              />
-              <div className="mt-5 flex gap-5 justify-end">
-                {/* Cancel button to close the dialog */}
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant=""
-                  disabled={loading || !userInput}
-                  onClick={GenerateFromAI}
-                >
-                  {loading ? (
-                    <Loader2Icon className="animate-spin" />
-                  ) : (
-                    "Generate"
-                  )}
-                </Button>
-              </div>
+              Describe the document you want and AI will draft it for you.
             </DialogDescription>
           </DialogHeader>
+
+          <Input
+            placeholder="Ex. a weekly meeting notes template"
+            onChange={(event) => setUserInput(event?.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && userInput && !loading) {
+                GenerateFromAI();
+              }
+            }}
+          />
+
+          <div className="mt-2 flex gap-3 justify-end">
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={loading || !userInput} onClick={GenerateFromAI}>
+              {loading ? <Loader2Icon className="animate-spin" /> : "Generate"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

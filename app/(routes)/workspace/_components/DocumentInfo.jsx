@@ -1,6 +1,7 @@
 "use client";
 
 import CoverPicker from "@/app/_components/CoverPicker";
+import { highResCover } from "@/app/_shared/CoverOption";
 import EmojiPickerComponent from "@/app/_components/EmojiPickerComponent";
 import { db } from "@/config/firebaseConfig";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
@@ -70,19 +71,23 @@ function DocumentInfo({ params }) {
           >
             Change Cover
           </h2>
-          <div className="group-hover:opacity-40">
+          <div className="relative w-full h-[200px] group-hover:opacity-40">
+            {/* `fill` + `sizes` lets Next serve a full-width source instead of
+                upscaling a 400px one, which made the banner look blurry. */}
             <Image
-              src={coverImage}
-              width={400}
-              height={400}
-              className="w-full h-[200px] object-cover"
+              src={highResCover(coverImage)}
+              alt="Document cover"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
             />
           </div>
         </div>
       </CoverPicker>
 
       {/* Emoji Picker  */}
-      <div className="absolute ml-10 px-20 mt-[-40px] cursor-pointer">
+      <div className="absolute ml-4 px-4 md:ml-10 md:px-20 mt-[-40px] cursor-pointer">
         <EmojiPickerComponent
           setEmojiIcon={(emoji) => {
             setEmoji(emoji);
@@ -100,12 +105,12 @@ function DocumentInfo({ params }) {
       </div>
 
       {/* File Name  */}
-      <div className="mt-10 px-20 ml-10 p-10">
+      <div className="mt-10 p-4 px-4 md:px-20 md:ml-10 md:p-10">
         <input
           type="text"
           placeholder="Untitled Document"
           defaultValue={documentInfo?.documentName}
-          className="font-bold text-4xl outline-none"
+          className="w-full font-bold text-2xl md:text-4xl outline-none"
           onBlur={(event) =>
             updateDocumentInfo("documentName", event.target.value)
           }

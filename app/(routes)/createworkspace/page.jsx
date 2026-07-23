@@ -10,7 +10,8 @@ import { Loader2Icon, SmilePlus } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
-import uuid4 from "uuid4";
+import { toast } from "sonner";
+import { createDocument } from "@/lib/firestoreActions";
 
 function CreateWorkspace() {
   const [coverImage, setCoverImage] = useState("/cover.png");
@@ -22,35 +23,35 @@ function CreateWorkspace() {
   const router = useRouter();
 
   const OnCreateWorkspace = async () => {
+    // Belt-and-suspenders against rapid double-clicks: even if a click slips
+    // through before the button re-renders as disabled, bail out here.
+    if (loading) return;
     setLoading(true);
-    const workspaceId = Date.now();
-    const result = await setDoc(doc(db, "Workspace", workspaceId.toString()), {
-      workspaceName: workspaceName,
-      emoji: emoji,
-      coverImage: coverImage,
-      createdBy: user?.primaryEmailAddress?.emailAddress,
-      id: workspaceId,
-      orgId: orgId ? orgId : user?.primaryEmailAddress?.emailAddress,
-    });
 
-    const docId = uuid4();
-    await setDoc(doc(db, "workspaceDocuments", docId.toString()), {
-      workspaceId: workspaceId,
-      createdBy: user?.primaryEmailAddress?.emailAddress,
-      coverImage: null,
-      emoji: null,
-      id: docId,
-      documentName: "Untitled Document",
-      documentOutput: [],
-    });
+    try {
+      const workspaceId = Date.now();
+      const email = user?.primaryEmailAddress?.emailAddress;
 
-    await setDoc(doc(db, "documentOutput", docId.toString()), {
-      docId: docId,
-      output: [],
-    });
+      await setDoc(doc(db, "Workspace", workspaceId.toString()), {
+        workspaceName: workspaceName,
+        emoji: emoji,
+        coverImage: coverImage,
+        createdBy: email,
+        id: workspaceId,
+        orgId: orgId ? orgId : email,
+      });
 
-    setLoading(false);
-    router.replace("/workspace/" + workspaceId + "/" + docId);
+      // Creates the first document + its content (shared helper).
+      const docId = await createDocument(workspaceId, email);
+
+      // Don't reset loading here — we're navigating away, so keep the button
+      // disabled/spinning until the new page takes over.
+      router.replace("/workspace/" + workspaceId + "/" + docId);
+    } catch (error) {
+      console.error("Failed to create workspace:", error);
+      toast.error("Failed to create workspace. Please try again.");
+      setLoading(false); // re-enable so they can retry
+    }
   };
 
   const handleCancel = () => {

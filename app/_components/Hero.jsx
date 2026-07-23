@@ -20,10 +20,9 @@ function Hero() {
               </span>
             </h1>
             <p className="mt-8 text-gray-700 dark:text-gray-300">
-               Looper Alias is a collaborative workspace that lets teams
-              create, share, and work together on projects seamlessly. It
-              combines flexible pages with reusable components that sync across
-              different apps, making it easy to stay organized and up-to-date.
+              Looper Alias is a collaborative workspace where teams create,
+              share, and build together in real time. Flexible pages and
+              reusable blocks keep everyone organized and always up to date.
             </p>
             <div className="mt-16 flex flex-wrap justify-center gap-y-4 gap-x-6">
               <a

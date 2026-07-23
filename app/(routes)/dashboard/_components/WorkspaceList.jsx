@@ -6,6 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import WorkspaceItemList from "./WorkspaceItemList";
+import SearchDocuments from "./SearchDocuments";
+import TrashDialog from "./TrashDialog";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/config/firebaseConfig";
 
@@ -13,38 +15,56 @@ function WorkspaceList() {
   const { user } = useUser();
   const { orgId } = useAuth();
   const [workspaceList, setWorkspaceList] = useState([]);
+  const [view, setView] = useState("grid"); // "grid" (tile) | "list"
+  const [sort, setSort] = useState("newest"); // newest | oldest | name
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     user && getWorkspaceList();
   }, [orgId, user]);
 
   const getWorkspaceList = async () => {
-    console.log("Fetching workspace list");
-    const q = query(
-      collection(db, "Workspace"),
-      where(
-        "orgId",
-        "==",
-        orgId ? orgId : user?.primaryEmailAddress?.emailAddress
-      )
-    );
-    const querySnapshot = await getDocs(q);
+    setIsLoading(true);
+    try {
+      const q = query(
+        collection(db, "Workspace"),
+        where(
+          "orgId",
+          "==",
+          orgId ? orgId : user?.primaryEmailAddress?.emailAddress
+        )
+      );
+      const querySnapshot = await getDocs(q);
 
-    const newWorkspaceList = [];
-    querySnapshot.forEach((doc) => {
-      newWorkspaceList.push({ id: doc.id, ...doc.data() });
-    });
-    console.log("New workspace list:", newWorkspaceList);
-    setWorkspaceList(newWorkspaceList);
+      const newWorkspaceList = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Hide soft-deleted (trashed) workspaces. Filtered here rather than in
+        // the query so pre-existing docs without the field still show.
+        if (!data.deletedAt) newWorkspaceList.push({ id: doc.id, ...data });
+      });
+      setWorkspaceList(newWorkspaceList);
+    } catch (error) {
+      console.error("Failed to load workspaces:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  console.log("Rendering WorkspaceList, current list:", workspaceList);
 
   return (
     <div className="my-10 p-10 md:px-24 lg:px-36 xl:px-52">
-      <div className="flex justify-between">
-        <h2 className="font-bold text-2xl">Hello, {user?.fullName}</h2>
-        <Link href={"/createworkspace"}>
+      <div className="flex items-center gap-4">
+        <h2 className="font-bold text-2xl truncate shrink-0">
+          Hello, {user?.fullName}
+        </h2>
+        {/* flex-1 + justify-center centers the search in the space between
+            the greeting and the + button, rather than hugging either one. */}
+        <div className="flex flex-1 justify-center">
+          <div className="w-full max-w-sm">
+            <SearchDocuments />
+          </div>
+        </div>
+        <Link href={"/createworkspace"} className="shrink-0">
           <Button>+</Button>
         </Link>
       </div>
@@ -53,13 +73,47 @@ function WorkspaceList() {
         <div>
           <h2 className="font-medium text-primary">Workspaces</h2>
         </div>
-        <div className="flex gap-2">
-          <LayoutGrid />
-          <AlignLeft />
+        <div className="flex items-center gap-3">
+          <TrashDialog onChanged={getWorkspaceList} />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="text-sm bg-transparent border rounded-md px-2 py-1 cursor-pointer outline-none"
+            aria-label="Sort workspaces"
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="name">Name (A–Z)</option>
+          </select>
+          <LayoutGrid
+            onClick={() => setView("grid")}
+            className={`cursor-pointer ${
+              view === "grid" ? "text-primary" : "text-gray-400"
+            }`}
+          />
+          <AlignLeft
+            onClick={() => setView("list")}
+            className={`cursor-pointer ${
+              view === "list" ? "text-primary" : "text-gray-400"
+            }`}
+          />
         </div>
       </div>
 
-      {workspaceList.length === 0 ? (
+      {isLoading ? (
+        // Skeleton grid — avoids flashing the "create workspace" empty state
+        // before the fetch resolves.
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="border rounded-xl overflow-hidden">
+              <div className="h-[150px] bg-gray-200 dark:bg-gray-800 animate-pulse" />
+              <div className="p-4">
+                <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : workspaceList.length === 0 ? (
         <div className="flex flex-col justify-center items-center my-10">
           <Image
             src={"/workspace.png"}
@@ -76,6 +130,8 @@ function WorkspaceList() {
         <WorkspaceItemList
           workspaceList={workspaceList}
           setWorkspaceList={setWorkspaceList}
+          view={view}
+          sort={sort}
         />
       )}
     </div>

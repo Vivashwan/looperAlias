@@ -1,6 +1,8 @@
 // Import the functions you need from the SDKs you need
+// NOTE: `firebase/analytics` is browser-only and was imported but never used.
+// This module is now also imported from server routes, so it must stay
+// Node-safe.
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 
 // TODO: Add SDKs for Firebase products that you want to use

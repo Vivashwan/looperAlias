@@ -23,18 +23,23 @@ function CoverPicker({ children, setNewCover }) {
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Update Cover</DialogTitle>
+                    {/* DialogDescription renders a <p>, so the image grid lives
+                        as a sibling — a grid of <div>s inside a <p> is invalid
+                        HTML and triggers a hydration warning. */}
                     <DialogDescription>
-                        <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-3'>
-                            {CoverOption.map((cover, index) => (
-                                <div onClick={() => setSelectedCover(cover?.imageUrl)}
-                                    className={`${selectedCover == cover?.imageUrl && 'border-primary border-2'} p-1 rounded-md`}
-                                >
-                                    <Image src={cover?.imageUrl} width={200} height={140} className="h-[70px] w-full rounded-md object-cover" />
-                                </div>
-                            ))}
-                        </div>
+                        Pick a cover image for this document.
                     </DialogDescription>
                 </DialogHeader>
+                <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-3'>
+                    {CoverOption.map((cover) => (
+                        <div key={cover.imageUrl}
+                            onClick={() => setSelectedCover(cover?.imageUrl)}
+                            className={`${selectedCover == cover?.imageUrl && 'border-primary border-2'} p-1 rounded-md cursor-pointer`}
+                        >
+                            <Image src={cover?.imageUrl} width={200} height={140} alt="Cover option" className="h-[70px] w-full rounded-md object-cover" />
+                        </div>
+                    ))}
+                </div>
                 <DialogFooter className="">
                     <DialogClose asChild>
                         <Button type="button" variant="secondary">

@@ -21,21 +21,72 @@ h6.ce-header{
   @apply text-base font-semibold
 }
 
-.data-radix-popper-content-wrapper{
-  --lb-z-index: 50;
+/* This was written as `.data-radix-popper-content-wrapper` — a CLASS selector
+   for what is actually a data attribute, so it never matched anything. */
+[data-radix-popper-content-wrapper] {
+  --lb-z-index: 100;
 }
+
 /* Styles all default components */
 .lb-root {
   --lb-accent: purple;
   --lb-spacing: 1em;
   --lb-radius: 0;
-  --lb-z-index:10
+  /* Was 10, which put the composer's @-mention and emoji popovers *below* the
+     sidebar (z-40) and comment panel, making them unclickable. */
+  --lb-z-index: 100;
+}
+
+/* The floating @-mention / emoji pickers portal to <body>; keep them on top. */
+.lb-portal,
+.lb-elevation,
+.lb-tooltip,
+.lb-composer-suggestions {
+  z-index: 100;
 }
 
 .ce-block__content,
     .ce-toolbar__content {
-        max-width: 70%;
+        max-width: 100%;
     }
+
+/* Keep the editor from growing horizontally: constrain widths and wrap text
+   so typing flows onto the next line instead of running off to the right. */
+.codex-editor,
+.codex-editor__redactor,
+.ce-block,
+.ce-block__content,
+.ce-paragraph {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Dark mode: EditorJS hard-codes near-black text and icons, which are invisible
+   on a dark background. Lift the content and its floating toolbars/popovers. */
+.dark .codex-editor,
+.dark .cdx-block,
+.dark .ce-block a {
+    color: #e5e7eb;
+}
+.dark .ce-toolbar__plus,
+.dark .ce-toolbar__settings-btn {
+    color: #e5e7eb;
+}
+.dark .ce-popover,
+.dark .ce-inline-toolbar,
+.dark .ce-conversion-toolbar,
+.dark .ce-settings {
+    background-color: #1f2937;
+    color: #e5e7eb;
+    border-color: #374151;
+}
+.dark .ce-popover-item:hover,
+.dark .ce-popover__item:hover,
+.dark .ce-inline-tool:hover,
+.dark .ce-conversion-tool:hover {
+    background-color: #374151;
+}
 
 @layer base {
   :root {

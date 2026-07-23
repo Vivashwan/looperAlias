@@ -2,6 +2,8 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/app/_components/ThemeProvider";
+import { FirebaseAuthBridge } from "@/app/_components/FirebaseAuthBridge";
 import "@liveblocks/react-ui/styles.css";
 
 const inter = Outfit({ subsets: ["latin"] });
@@ -14,9 +16,15 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      {/* suppressHydrationWarning: next-themes sets the theme class on <html>
+          before React hydrates, so the server/client class differs by design. */}
+      <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
-          <Toaster />{children}
+          <ThemeProvider>
+            <FirebaseAuthBridge />
+            <Toaster />
+            {children}
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

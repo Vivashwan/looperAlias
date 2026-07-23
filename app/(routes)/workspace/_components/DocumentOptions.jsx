@@ -1,11 +1,5 @@
-import React, { useState, useEffect } from "react";
-import {
-  MoreVertical,
-  Trash2,
-  Link2 as Link2Icon,
-  PenBox,
-  SmilePlus,
-} from "lucide-react";
+import React, { useState } from "react";
+import { MoreVertical, Trash2, Link2 as Link2Icon, PenBox } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,12 +26,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import EmojiPickerComponent from "@/app/_components/EmojiPickerComponent";
-import { db } from "@/config/firebaseConfig"; // Ensure correct import of Firestore config
-import { doc, getDoc, updateDoc } from "firebase/firestore"; // Ensure correct Firestore imports
 
-function DocumentOptions({ doc, deleteDocument, updateDocument }) {
+function DocumentOptions({ doc, deleteDocument, renameDocument }) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const openRename = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setNewName(doc?.documentName ?? "");
+    setIsRenameOpen(true);
+  };
+
+  const handleRenameConfirmed = async (event) => {
+    event.stopPropagation();
+    setSaving(true);
+    try {
+      await renameDocument(doc.id, newName);
+      setIsRenameOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleShareLinkClick = async (event) => {
     event.stopPropagation();
@@ -58,12 +70,17 @@ function DocumentOptions({ doc, deleteDocument, updateDocument }) {
   };
 
   return (
-    <>
+    // Stop clicks bubbling to the document row, which would navigate away.
+    <div onClick={(event) => event.stopPropagation()}>
       <DropdownMenu>
-        <DropdownMenuTrigger onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuTrigger onClick={(event) => event.stopPropagation()}>
           <MoreVertical className="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent>
+          <DropdownMenuItem onClick={openRename}>
+            <PenBox className="mr-2 h-4 w-4" />
+            Rename
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleShareLinkClick}>
             <Link2Icon className="mr-2 h-4 w-4" />
             Share Link
@@ -82,8 +99,40 @@ function DocumentOptions({ doc, deleteDocument, updateDocument }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Rename */}
+      <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+        <DialogContent onClick={(event) => event.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Rename document</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={newName}
+            placeholder="Document name"
+            onChange={(event) => setNewName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && newName.trim() && !saving) {
+                handleRenameConfirmed(event);
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setIsRenameOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!newName.trim() || saving}
+              onClick={handleRenameConfirmed}
+            >
+              {saving ? "Saving..." : "Rename"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete */}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent onClick={(event) => event.stopPropagation()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -92,7 +141,7 @@ function DocumentOptions({ doc, deleteDocument, updateDocument }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+            <AlertDialogCancel onClick={(event) => event.stopPropagation()}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirmed}>
@@ -101,7 +150,7 @@ function DocumentOptions({ doc, deleteDocument, updateDocument }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
 

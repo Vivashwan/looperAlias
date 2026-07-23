@@ -4,28 +4,118 @@ import Header from "@editorjs/header";
 import Delimiter from "@editorjs/delimiter";
 import Alert from "editorjs-alert";
 import List from "@editorjs/list";
-import NestedList from "@editorjs/nested-list";
 import Checklist from "@editorjs/checklist";
-import Embed from "@editorjs/embed";
 import SimpleImage from "simple-image-editorjs";
 import Table from "@editorjs/table";
 import CodeTool from "@editorjs/code";
-import { TextVariantTune } from "@editorjs/text-variant-tune";
+import Quote from "@editorjs/quote";
+import Embed from "@editorjs/embed";
+import Marker from "@editorjs/marker";
+import InlineCode from "@editorjs/inline-code";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/config/firebaseConfig";
 import { useUser } from "@clerk/nextjs";
 import Paragraph from "@editorjs/paragraph";
 import GenerateAITemplate from "./GenerateAITemplate";
+import { countWords, readingTimeMinutes, toMarkdown } from "@/lib/editorContent";
+import { makeAiInlineTool } from "./aiInlineTool";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
+
+// How many snapshots of undo history to keep per document.
+const HISTORY_LIMIT = 100;
 
 function RichDocumentEditor({ params }) {
   const editorRef = useRef(null);
   const { user } = useUser();
   const isFetched = useRef(false);
+  const [stats, setStats] = useState({ words: 0, minutes: 0 });
+
+  const updateStats = (output) => {
+    setStats({
+      words: countWords(output),
+      minutes: readingTimeMinutes(output),
+    });
+  };
+
+  // A simple, self-contained undo/redo history. EditorJS ships none, and the
+  // `editorjs-undo` plugin crashed on this app's programmatic re-renders. This
+  // just snapshots the saved output and re-renders an older one on Ctrl+Z — it
+  // never touches the browser text selection, so it can't hit the crashes that
+  // library did. Trade-off: the caret jumps rather than being restored.
+  const historyRef = useRef([]); // array of saved outputs, oldest → newest
+  const historyPosRef = useRef(-1); // index into historyRef we're currently at
+
+  const recordHistory = (output) => {
+    if (!output?.blocks) return;
+    const history = historyRef.current;
+    const current = history[historyPosRef.current];
+    // Ignore no-op saves — including the echo from an undo/redo re-render.
+    if (current && JSON.stringify(current.blocks) === JSON.stringify(output.blocks)) {
+      return;
+    }
+    // A new edit after undoing discards the redo branch.
+    history.splice(historyPosRef.current + 1);
+    history.push(output);
+    if (history.length > HISTORY_LIMIT) history.shift();
+    historyPosRef.current = history.length - 1;
+  };
+
+  const restoreHistory = async (position) => {
+    const snapshot = historyRef.current[position];
+    if (!snapshot || !editorRef.current) return;
+    historyPosRef.current = position;
+    await editorRef.current.render(snapshot);
+    // render() rebuilds the DOM and drops focus. Put the cursor back so the
+    // keydown listener (which lives on the editor) keeps receiving keys and
+    // consecutive Ctrl+Z presses work without clicking back in.
+    try {
+      editorRef.current.caret.setToLastBlock("end");
+    } catch {
+      editorRef.current.focus(true);
+    }
+    // Persist the undone/redone state so it survives reload and reaches others.
+    SaveDocument(snapshot);
+  };
+
+  const handleUndo = () => {
+    if (historyPosRef.current > 0) restoreHistory(historyPosRef.current - 1);
+  };
+
+  const handleRedo = () => {
+    if (historyPosRef.current < historyRef.current.length - 1) {
+      restoreHistory(historyPosRef.current + 1);
+    }
+  };
 
   useEffect(() => {
     if (user) {
       InitEditor();
     }
+  }, [user]);
+
+  // Ctrl/Cmd+Z to undo, Ctrl+Y or Ctrl/Cmd+Shift+Z to redo, scoped to the editor.
+  useEffect(() => {
+    const holder = document.getElementById("editorjs");
+    if (!holder) return;
+
+    const onKeyDown = (event) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+      } else if ((key === "z" && event.shiftKey) || key === "y") {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+
+    holder.addEventListener("keydown", onKeyDown);
+    return () => holder.removeEventListener("keydown", onKeyDown);
+    // Re-bind once `user` loads so the save inside undo/redo isn't a no-op from
+    // a stale (null-user) closure captured at first render.
   }, [user]);
 
   const SaveDocument = async (outputData) => {
@@ -47,13 +137,21 @@ function RichDocumentEditor({ params }) {
   const GetDocumentOutput = () => {
     const unsubscribe = onSnapshot(
       doc(db, "documentOutput", params?.documentid),
-      (doc) => {
+      (snapshot) => {
+        const data = snapshot.data();
         if (
-          doc.data()?.editedBy !== user?.primaryEmailAddress?.emailAddress ||
+          data?.editedBy !== user?.primaryEmailAddress?.emailAddress ||
           !isFetched.current
         ) {
-          doc.data().editedBy &&
-            editorRef.current?.render(JSON.parse(doc.data()?.output));
+          if (data?.editedBy && data?.output) {
+            const parsed = JSON.parse(data.output);
+            editorRef.current?.render(parsed).then(() => {
+              // Seed history with the loaded content so the first Ctrl+Z has a
+              // baseline to return to instead of an empty editor.
+              if (historyRef.current.length === 0) recordHistory(parsed);
+              updateStats(parsed);
+            });
+          }
           isFetched.current = true;
         }
       }
@@ -65,7 +163,11 @@ function RichDocumentEditor({ params }) {
     if (!editorRef.current) {
       const editor = new EditorJS({
         onChange: () => {
-          editor.save().then(SaveDocument);
+          editor.save().then((outputData) => {
+            SaveDocument(outputData);
+            recordHistory(outputData);
+            updateStats(outputData);
+          });
         },
         onReady: () => {
           GetDocumentOutput();
@@ -74,7 +176,14 @@ function RichDocumentEditor({ params }) {
         tools: {
           header: Header,
           delimiter: Delimiter,
-          paragraph: Paragraph,
+          paragraph: {
+            class: Paragraph,
+            inlineToolbar: true,
+            // By default the paragraph tool's validate() rejects empty blocks,
+            // so blank lines get dropped on reload with "skipped because saved
+            // data is invalid". Keep them.
+            config: { preserveBlank: true },
+          },
           alert: {
             class: Alert,
             inlineToolbar: true,
@@ -113,7 +222,54 @@ function RichDocumentEditor({ params }) {
             class: CodeTool,
             shortcut: "CMD+SHIFT+P",
           },
-          // textVariant: TextVariantTune,
+          // Block tools
+          quote: {
+            class: Quote,
+            inlineToolbar: true,
+            shortcut: "CMD+SHIFT+O",
+            config: {
+              quotePlaceholder: "Enter a quote",
+              captionPlaceholder: "Quote's author",
+            },
+          },
+          embed: {
+            class: Embed,
+            config: {
+              services: {
+                youtube: true,
+                vimeo: true,
+                twitter: true,
+                codepen: true,
+                github: true,
+              },
+            },
+          },
+          // Inline tools — these appear in the toolbar when you select text,
+          // rather than adding a new block.
+          marker: {
+            class: Marker,
+            shortcut: "CMD+SHIFT+H",
+          },
+          inlineCode: {
+            class: InlineCode,
+            shortcut: "CMD+SHIFT+I",
+          },
+          // Inline AI: select text, then use these toolbar buttons to rewrite
+          // or summarize the selection via Gemini (see aiInlineTool.js).
+          aiImprove: {
+            class: makeAiInlineTool({
+              action: "improve",
+              title: "AI: Improve writing",
+              label: "✨",
+            }),
+          },
+          aiSummarize: {
+            class: makeAiInlineTool({
+              action: "summarize",
+              title: "AI: Summarize",
+              label: "∑",
+            }),
+          },
         },
       });
       editorRef.current = editor;
@@ -121,21 +277,84 @@ function RichDocumentEditor({ params }) {
   };
 
   const handleGenerateAITemplate = async (output) => {
-    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
-    // Render AI template in EditorJS locally
-    await editorRef.current.render(output);
+    const blocks = output?.blocks ?? [];
+    if (!blocks.length) return;
+
+    // Insert the template at the cursor instead of re-rendering (which would
+    // wipe the existing document).
+    const total = editor.blocks.getBlocksCount();
+    let index = editor.blocks.getCurrentBlockIndex();
+    if (index < 0 || index >= total) index = total - 1;
+
+    // If the cursor sits on an empty block, overwrite it so the template
+    // doesn't leave a stray blank line above itself.
+    let replaceCurrent = Boolean(editor.blocks.getBlockByIndex(index)?.isEmpty);
+    let insertAt = replaceCurrent ? index : index + 1;
+    let inserted = 0;
+
+    for (const block of blocks) {
+      try {
+        editor.blocks.insert(
+          block.type,
+          block.data,
+          {},
+          insertAt,
+          false,
+          replaceCurrent
+        );
+      } catch (error) {
+        // The model can emit a block type this editor has no tool for.
+        console.warn(`Skipping unsupported block type "${block.type}"`, error);
+        continue;
+      }
+      replaceCurrent = false;
+      insertAt += 1;
+      inserted += 1;
+    }
+
+    if (!inserted) return;
+
+    editor.caret.setToBlock(insertAt - 1, "end");
 
     // Save the updated content
-    const savedData = await editorRef.current.save();
+    const savedData = await editor.save();
     await SaveDocument(savedData);
+    recordHistory(savedData);
+    updateStats(savedData);
+  };
+
+  const handleExportMarkdown = async () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    try {
+      const output = await editor.save();
+      const markdown = toMarkdown(output);
+      await navigator.clipboard.writeText(markdown);
+      toast.success("Markdown copied to clipboard!");
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error("Couldn't export the document.");
+    }
   };
 
   return (
-    <div className=" ">
-      <div id="editorjs" className="w-[70%]"></div>
-      <div className="fixed bottom-10 md:ml-80 left-0 z-10">
+    <div className="px-4 md:ml-10 md:pl-20 md:pr-20">
+      <div id="editorjs" className="w-full"></div>
+
+      {/* Word count + reading time */}
+      <div className="mt-6 text-xs text-gray-400">
+        {stats.words} {stats.words === 1 ? "word" : "words"}
+        {stats.minutes > 0 && ` · ${stats.minutes} min read`}
+      </div>
+
+      <div className="fixed bottom-10 left-4 md:left-0 md:ml-80 z-10 flex gap-2">
         <GenerateAITemplate setGenerateAIOutput={handleGenerateAITemplate} />
+        <Button variant="outline" className="flex gap-2" onClick={handleExportMarkdown}>
+          <Download className="h-4 w-4" /> Export
+        </Button>
       </div>
     </div>
   );
