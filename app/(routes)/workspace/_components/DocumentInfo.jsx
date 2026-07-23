@@ -4,11 +4,12 @@ import CoverPicker from "@/app/_components/CoverPicker";
 import { highResCover } from "@/app/_shared/CoverOption";
 import EmojiPickerComponent from "@/app/_components/EmojiPickerComponent";
 import { db } from "@/config/firebaseConfig";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { SmilePlus } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 
 function DocumentInfo({ params }) {
@@ -18,6 +19,46 @@ function DocumentInfo({ params }) {
   const [emoji, setEmoji] = useState();
   const [documentInfo, setDocumentInfo] = useState();
   const router = useRouter();
+  const { orgId } = useAuth();
+  const { user } = useUser();
+
+  // App-level authorization (defense-in-depth): confirm this document's
+  // workspace belongs to the user's active org (or personal account). This is
+  // NOT real security on its own — Firestore rules are — but it stops honest
+  // users from opening another org's document via a guessed/shared URL.
+  useEffect(() => {
+    if (!params?.documentid || !user) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const docSnap = await getDoc(
+          doc(db, "workspaceDocuments", params.documentid)
+        );
+        if (!docSnap.exists()) return; // "not found" handled by the listener below
+
+        const wsSnap = await getDoc(
+          doc(db, "Workspace", String(docSnap.data().workspaceId))
+        );
+        const owner = wsSnap.exists() ? wsSnap.data().orgId : null;
+        const me = orgId || user?.primaryEmailAddress?.emailAddress;
+
+        // Only redirect on a definite mismatch; a missing/unreadable workspace
+        // is left to the content listener, so transient errors don't bounce
+        // legitimate users.
+        if (!cancelled && owner && me && owner !== me) {
+          toast.error("You don't have access to this document.");
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        console.error("Access check failed:", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params?.documentid, orgId, user, router]);
 
   useEffect(() => {
     if (params) {
