@@ -6,7 +6,6 @@ import {
 } from "@/components/ui/popover";
 import {
   useInboxNotifications,
-  useUnreadInboxNotificationsCount,
   useUpdateRoomNotificationSettings,
   RoomProvider,
   ClientSideSuspense,
@@ -16,21 +15,28 @@ import {
   InboxNotification,
   InboxNotificationList,
 } from "@liveblocks/react-ui";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/config/firebaseConfig";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { Loader2Icon, X } from "lucide-react";
 
 const IN_QUERY_LIMIT = 30;
 
 function NotificationBox({ children, params }) {
   const { inboxNotifications } = useInboxNotifications();
   const updateRoomNotificationSettings = useUpdateRoomNotificationSettings();
-  const { count } = useUnreadInboxNotificationsCount();
+  const { orgId } = useAuth();
+  const { user } = useUser();
+
+  // The current owner scope: active Clerk org, else personal email.
+  const me = orgId || user?.primaryEmailAddress?.emailAddress;
 
   const [replyingTo, setReplyingTo] = useState(null);
-  // roomId (= documentId) → "/workspace/<workspaceId>/<documentId>"
+  // roomId (= documentId) → "/workspace/<workspaceId>/<documentId>".
+  // Only contains documents that still exist and aren't trashed.
   const [hrefByRoom, setHrefByRoom] = useState({});
+  const [roomsResolved, setRoomsResolved] = useState(false);
 
   const currentRoomId = params?.documentid;
 
@@ -49,31 +55,82 @@ function NotificationBox({ children, params }) {
 
   // Resolve each notification's document to a link so the card is clickable.
   useEffect(() => {
-    if (!roomKey) return;
+    if (!roomKey || !me) {
+      if (!roomKey) setRoomsResolved(true);
+      return;
+    }
     const roomIds = roomKey.split(",");
     let cancelled = false;
+    setRoomsResolved(false);
 
     (async () => {
-      const map = {};
-      for (let i = 0; i < roomIds.length; i += IN_QUERY_LIMIT) {
-        const group = roomIds.slice(i, i + IN_QUERY_LIMIT);
-        const snap = await getDocs(
-          query(collection(db, "workspaceDocuments"), where("id", "in", group))
+      try {
+        // 1. Load the notification documents (skip trashed ones).
+        const docs = [];
+        for (let i = 0; i < roomIds.length; i += IN_QUERY_LIMIT) {
+          const group = roomIds.slice(i, i + IN_QUERY_LIMIT);
+          const snap = await getDocs(
+            query(collection(db, "workspaceDocuments"), where("id", "in", group))
+          );
+          snap.forEach((d) => {
+            const data = d.data();
+            if (!data.deletedAt) {
+              docs.push({ id: data.id, workspaceId: String(data.workspaceId) });
+            }
+          });
+        }
+
+        // 2. Look up each document's workspace (small set) for ownership.
+        const workspaceIds = [...new Set(docs.map((d) => d.workspaceId))];
+        const workspaceById = {};
+        await Promise.all(
+          workspaceIds.map(async (wid) => {
+            const wsnap = await getDoc(doc(db, "Workspace", wid));
+            if (wsnap.exists()) workspaceById[wid] = wsnap.data();
+          })
         );
-        snap.forEach((d) => {
-          const data = d.data();
-          // Don't link to deleted (trashed) documents — they're inaccessible.
-          if (data.deletedAt) return;
-          map[data.id] = `/workspace/${data.workspaceId}/${data.id}`;
+
+        // 3. Keep only documents the user can actually open: workspace exists,
+        // isn't trashed, and belongs to the active org / personal account. This
+        // is what stops notifications for other orgs' (or deleted) docs from
+        // showing and then bouncing you on click.
+        const map = {};
+        docs.forEach((d) => {
+          const ws = workspaceById[d.workspaceId];
+          if (ws && !ws.deletedAt && ws.orgId === me) {
+            map[d.id] = `/workspace/${d.workspaceId}/${d.id}`;
+          }
         });
+
+        if (!cancelled) {
+          setHrefByRoom(map);
+          setRoomsResolved(true);
+        }
+      } catch (error) {
+        console.error("Failed to resolve notification documents:", error);
+        if (!cancelled) {
+          setHrefByRoom({});
+          setRoomsResolved(true);
+        }
       }
-      if (!cancelled) setHrefByRoom(map);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [roomKey]);
+  }, [roomKey, me]);
+
+  // Show only notifications whose document the user can actually access.
+  // `hrefByRoom` holds exactly those, so it doubles as the visibility filter.
+  const visibleNotifications = inboxNotifications.filter(
+    (n) => hrefByRoom[n.roomId]
+  );
+
+  // Badge counts only visible + unread, so it matches the list (Liveblocks'
+  // own count would include hidden/other-org notifications).
+  const visibleUnreadCount = visibleNotifications.filter(
+    (n) => !n.readAt
+  ).length;
 
   const closeReply = () => setReplyingTo(null);
 
@@ -82,21 +139,27 @@ function NotificationBox({ children, params }) {
       <PopoverTrigger>
         <div className="flex gap-1">
           {children}{" "}
-          <span className="p-1 px-2 -ml-3 rounded-full text-[7px] bg-primary text-white">
-            {count}
-          </span>
+          {visibleUnreadCount > 0 && (
+            <span className="p-1 px-2 -ml-3 rounded-full text-[7px] bg-primary text-white">
+              {visibleUnreadCount}
+            </span>
+          )}
         </div>
       </PopoverTrigger>
       {/* Match the Liveblocks card background (#111827 = gray-900) so there are
           no darker gaps/seams showing between cards in dark mode. */}
       <PopoverContent className="w-[420px] max-h-[70vh] overflow-y-auto p-0 dark:bg-gray-900 dark:border-gray-800">
-        {inboxNotifications.length === 0 ? (
+        {!roomsResolved ? (
+          <div className="flex justify-center py-8">
+            <Loader2Icon className="h-5 w-5 animate-spin text-gray-400" />
+          </div>
+        ) : visibleNotifications.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-500">
             No notifications yet.
           </p>
         ) : (
           <InboxNotificationList>
-            {inboxNotifications.map((notification) => (
+            {visibleNotifications.map((notification) => (
               <div
                 key={notification.id}
                 className="border-b border-black/5 dark:border-white/10 last:border-b-0"
