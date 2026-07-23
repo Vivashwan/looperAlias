@@ -2,6 +2,7 @@
 import React from "react";
 import { useOthers } from "@liveblocks/react";
 
+// Show at most this many avatars; the rest collapse into a "+N" badge.
 const MAX_SHOWN = 4;
 
 function Avatar({ name, avatar }) {
