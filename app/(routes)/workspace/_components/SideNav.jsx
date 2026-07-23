@@ -113,19 +113,30 @@ function SideNav({ params }) {
           <ClientSideSuspense
             fallback={<Bell className="h-5 w-5 text-gray-500" />}
           >
-            <NotificationBox>
+            <NotificationBox params={params}>
               <Bell className="h-5 w-5 text-gray-500" />
             </NotificationBox>
           </ClientSideSuspense>
         </div>
         <hr className="my-5"></hr>
         <div>
-          <div className="flex justify-between items-center">
-            <h2 className="font-medium flex gap-2 items-center truncate">
+          <div className="flex justify-between items-center gap-2">
+            {/* Clicking the workspace name returns to the dashboard. */}
+            <button
+              onClick={() => router.push("/dashboard")}
+              title="Back to dashboard"
+              className="font-medium flex gap-2 items-center truncate rounded-md
+                px-2 py-1 -ml-2 hover:bg-gray-200 dark:hover:bg-gray-800
+                transition-colors"
+            >
               {workspace?.emoji}
               <span className="truncate">{workspace?.workspaceName}</span>
-            </h2>
-            <Button size="sm" className="text-lg" onClick={CreateNewDocument}>
+            </button>
+            <Button
+              size="sm"
+              className="text-lg shrink-0"
+              onClick={CreateNewDocument}
+            >
               {loading ? <Loader2Icon className="h-4 w-4 animate-spin" /> : "+"}
             </Button>
           </div>

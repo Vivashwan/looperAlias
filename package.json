@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^5.3.4",
+    "@clerk/themes": "^2.4.57",
     "@editorjs/checklist": "^1.6.0",
     "@editorjs/code": "^2.9.0",
     "@editorjs/delimiter": "^1.4.2",

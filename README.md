@@ -69,11 +69,16 @@ features).
   members.
 - **Presence** — avatars of others viewing a document, plus their **live
   cursors**.
-- **Notifications** — an inbox bell for comment activity, showing document names
-  (not raw IDs).
+- **Notifications** — an inbox bell for comment activity. Each notification
+  shows the document name and **links straight to that document**, and you can
+  **reply inline** from the bell — a reply to the current document appears live
+  in the comment panel; a reply to another document mounts that document's room
+  on demand.
 
 ### UX
 - **Dark mode** — system-aware with a manual toggle; persists across sessions.
+  Themes the whole app, including third-party UIs: Clerk (`@clerk/themes`) and
+  the Liveblocks comment components.
 - **Global search** (⌘K / Ctrl+K) across document **titles and content**, with
   matching snippets.
 - **Responsive** — the sidebar becomes a slide-over drawer on mobile.
@@ -93,7 +98,7 @@ features).
 | AI | Google Gemini (`@google/generative-ai`, `gemini-2.5-flash`) |
 | UI | Tailwind CSS, Radix UI, shadcn-style components, lucide-react icons |
 | Toasts | sonner |
-| Theming | next-themes |
+| Theming | next-themes (app) + `@clerk/themes` (Clerk components) |
 
 ---
 

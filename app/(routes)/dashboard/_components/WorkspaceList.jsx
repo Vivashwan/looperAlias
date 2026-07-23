@@ -85,18 +85,15 @@ function WorkspaceList() {
             <option value="oldest">Oldest</option>
             <option value="name">Name (A–Z)</option>
           </select>
-          <LayoutGrid
-            onClick={() => setView("grid")}
-            className={`cursor-pointer ${
-              view === "grid" ? "text-primary" : "text-gray-400"
-            }`}
-          />
-          <AlignLeft
-            onClick={() => setView("list")}
-            className={`cursor-pointer ${
-              view === "list" ? "text-primary" : "text-gray-400"
-            }`}
-          />
+          {/* One toggle: shows the current view's icon; click flips grid <-> list. */}
+          <button
+            onClick={() => setView(view === "grid" ? "list" : "grid")}
+            title={view === "grid" ? "Switch to list view" : "Switch to grid view"}
+            aria-label="Toggle view"
+            className="text-primary cursor-pointer"
+          >
+            {view === "grid" ? <LayoutGrid /> : <AlignLeft />}
+          </button>
         </div>
       </div>
 

@@ -37,6 +37,16 @@ h6.ce-header{
   --lb-z-index: 100;
 }
 
+/* Dark mode: Liveblocks derives its whole palette from these two variables and
+   has no dark theme of its own. Without this, the composer stays light in dark
+   mode and its light borders/dividers show as stray "parallel lines" on the
+   dark panel. Overriding the base pair re-themes the entire comment UI. */
+.dark .lb-root,
+.dark .lb-portal {
+  --lb-background: #111827;
+  --lb-foreground: #e5e7eb;
+}
+
 /* The floating @-mention / emoji pickers portal to <body>; keep them on top. */
 .lb-portal,
 .lb-elevation,
