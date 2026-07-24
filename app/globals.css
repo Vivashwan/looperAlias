@@ -45,6 +45,15 @@ h6.ce-header{
 .dark .lb-portal {
   --lb-background: #111827;
   --lb-foreground: #e5e7eb;
+  /* Liveblocks derives its subtle tones (used for dividers and the thin border
+     lines around the composer/threads) by mixing --lb-foreground against
+     --lb-dynamic-background. Left at the default those lines render near-white
+     on the dark panel. Pin the dynamic background to the panel color so every
+     derived tone recomputes for dark, and force the subtle tone to a faint
+     light-on-dark value so the divider lines are barely-there instead of
+     bright white. */
+  --lb-dynamic-background: #111827;
+  --lb-foreground-subtle: rgba(255, 255, 255, 0.1);
 }
 
 /* The floating @-mention / emoji pickers portal to <body>; keep them on top. */
@@ -55,9 +64,16 @@ h6.ce-header{
   z-index: 100;
 }
 
+/* Leave a small gutter on each side instead of filling the full width. With
+   max-width:100% the block content spanned the entire wrapper, which trips
+   EditorJS into "narrow" mode — it adds .codex-editor--narrow when
+   (wrapper width < block-content width) and then pins the + / drag controls to
+   the far RIGHT. Keeping the content a bit narrower than the wrapper stays in
+   normal mode, so those controls sit in the LEFT gutter at the start of each
+   line, while the text is still comfortably wide. */
 .ce-block__content,
     .ce-toolbar__content {
-        max-width: 100%;
+        max-width: calc(100% - 100px);
     }
 
 /* Keep the editor from growing horizontally: constrain widths and wrap text
