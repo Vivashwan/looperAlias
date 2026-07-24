@@ -384,7 +384,7 @@ function RichDocumentEditor({ params }) {
     try {
       const output = await editor.save();
       await navigator.clipboard.writeText(toMarkdown(output));
-      toast.success("Copied as Markdown — paste it into Notion, etc.");
+      toast.success("Copied as Markdown, ready to paste into Notion.");
     } catch (error) {
       console.error("Copy failed:", error);
       toast.error("Couldn't copy the document.");
