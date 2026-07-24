@@ -12,15 +12,22 @@ import Quote from "@editorjs/quote";
 import Embed from "@editorjs/embed";
 import Marker from "@editorjs/marker";
 import InlineCode from "@editorjs/inline-code";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/config/firebaseConfig";
 import { useUser } from "@clerk/nextjs";
 import Paragraph from "@editorjs/paragraph";
 import GenerateAITemplate from "./GenerateAITemplate";
 import { countWords, readingTimeMinutes, toMarkdown } from "@/lib/editorContent";
+import { downloadDocumentPdf } from "@/lib/exportPdf";
 import { makeAiInlineTool } from "./aiInlineTool";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Download, FileText, Clipboard } from "lucide-react";
 import { toast } from "sonner";
 
 // How many snapshots of undo history to keep per document.
@@ -353,17 +360,34 @@ function RichDocumentEditor({ params }) {
     updateStats(savedData);
   };
 
-  const handleExportMarkdown = async () => {
+  const handleExportPdf = async () => {
     const editor = editorRef.current;
     if (!editor) return;
     try {
       const output = await editor.save();
-      const markdown = toMarkdown(output);
-      await navigator.clipboard.writeText(markdown);
-      toast.success("Markdown copied to clipboard!");
+      // The document's title lives in workspaceDocuments, not in the editor.
+      const snap = await getDoc(doc(db, "workspaceDocuments", params?.documentid));
+      const title = snap.exists()
+        ? snap.data().documentName || "Untitled Document"
+        : "Document";
+      await downloadDocumentPdf(output, title);
+      toast.success("Downloaded PDF");
     } catch (error) {
       console.error("Export failed:", error);
       toast.error("Couldn't export the document.");
+    }
+  };
+
+  const handleCopyMarkdown = async () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    try {
+      const output = await editor.save();
+      await navigator.clipboard.writeText(toMarkdown(output));
+      toast.success("Copied as Markdown — paste it into Notion, etc.");
+    } catch (error) {
+      console.error("Copy failed:", error);
+      toast.error("Couldn't copy the document.");
     }
   };
 
@@ -379,9 +403,22 @@ function RichDocumentEditor({ params }) {
 
       <div className="fixed bottom-10 left-4 md:left-0 md:ml-80 z-10 flex gap-2">
         <GenerateAITemplate setGenerateAIOutput={handleGenerateAITemplate} />
-        <Button variant="outline" className="flex gap-2" onClick={handleExportMarkdown}>
-          <Download className="h-4 w-4" /> Export
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="flex gap-2">
+              <Download className="h-4 w-4" /> Export
+            </Button>
+          </DropdownMenuTrigger>
+          {/* Opens upward — the trigger sits near the bottom of the screen. */}
+          <DropdownMenuContent side="top" align="start">
+            <DropdownMenuItem onClick={handleExportPdf}>
+              <FileText className="mr-2 h-4 w-4" /> Download PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopyMarkdown}>
+              <Clipboard className="mr-2 h-4 w-4" /> Copy as Markdown
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
