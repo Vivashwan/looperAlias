@@ -1,12 +1,11 @@
 "use client";
 
 import CoverPicker from "@/app/_components/CoverPicker";
-import { highResCover } from "@/app/_shared/CoverOption";
+import CoverMedia from "@/app/_components/CoverMedia";
 import EmojiPickerComponent from "@/app/_components/EmojiPickerComponent";
 import { db } from "@/config/firebaseConfig";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { SmilePlus } from "lucide-react";
-import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
@@ -120,18 +119,11 @@ function DocumentInfo({ params }) {
           >
             Change Cover
           </h2>
-          <div className="relative w-full h-[200px] group-hover:opacity-40 bg-gray-100 dark:bg-gray-800">
+          <div className="relative w-full h-[200px] group-hover:opacity-40 bg-gray-100 dark:bg-gray-800 overflow-hidden">
             {/* Render nothing until the cover is known (avoids flashing the
-                default). `fill` + `sizes` serves a full-width source. */}
+                default). CoverMedia picks <video>/<img>/<Image> by URL type. */}
             {coverImage && (
-              <Image
-                src={highResCover(coverImage)}
-                alt="Document cover"
-                fill
-                priority
-                sizes="100vw"
-                className="object-cover"
-              />
+              <CoverMedia src={coverImage} alt="Document cover" fill priority />
             )}
           </div>
         </div>

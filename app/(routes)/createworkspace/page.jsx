@@ -7,7 +7,7 @@ import { db } from "@/config/firebaseConfig";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { doc, setDoc } from "firebase/firestore";
 import { Loader2Icon, SmilePlus } from "lucide-react";
-import Image from "next/image";
+import CoverMedia from "@/app/_components/CoverMedia";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -71,9 +71,10 @@ function CreateWorkspace() {
             >
               Change Cover
             </h2>
-            <div className="group-hover:opacity-40">
-              <Image
+            <div className="group-hover:opacity-40 relative overflow-hidden rounded-t-xl">
+              <CoverMedia
                 src={coverImage}
+                alt="Workspace cover"
                 width={400}
                 height={400}
                 className="w-full h-[180px] object-cover rounded-t-xl"

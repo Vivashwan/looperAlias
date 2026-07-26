@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import Image from "next/image";
 import {
   MoreVertical,
   Trash2,
@@ -8,8 +7,8 @@ import {
   SmilePlus,
 } from "lucide-react";
 import CoverPicker from "@/app/_components/CoverPicker";
+import CoverMedia from "@/app/_components/CoverMedia";
 import EmojiPickerComponent from "@/app/_components/EmojiPickerComponent";
-import { highResCover } from "@/app/_shared/CoverOption";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -141,13 +140,12 @@ function WorkspaceOptions({ workspace, deleteWorkspace, updateWorkspace }) {
               >
                 Change Cover
               </h2>
-              <div className="group-hover:opacity-40">
-                <Image
-                  src={highResCover(coverImage)}
+              <div className="group-hover:opacity-40 relative overflow-hidden rounded-lg">
+                <CoverMedia
+                  src={coverImage}
                   width={400}
                   height={200}
                   alt="Workspace cover"
-                  sizes="(max-width: 768px) 100vw, 460px"
                   className="w-full h-[150px] object-cover rounded-lg"
                 />
               </div>

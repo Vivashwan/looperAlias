@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useMemo } from "react";
 import WorkspaceOptions from "./WorkspaceOptions";
@@ -6,7 +5,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/config/firebaseConfig";
 import { toast } from "sonner";
 import { Star } from "lucide-react";
-import { highResCover } from "@/app/_shared/CoverOption";
+import CoverMedia from "@/app/_components/CoverMedia";
 import { softDeleteWorkspace, restoreWorkspace } from "@/lib/firestoreActions";
 
 function WorkspaceItemList({
@@ -145,18 +144,20 @@ function WorkspaceItemList({
           }
           onClick={() => onClickWorkspaceItem(String(workspace.id))}
         >
-          <Image
-            src={highResCover(workspace?.coverImage)}
-            width={400}
-            height={200}
-            alt="cover"
-            sizes={isList ? "80px" : "(max-width: 768px) 50vw, 25vw"}
+          <div
             className={
               isList
-                ? "h-[50px] w-[80px] object-cover rounded-lg flex-shrink-0"
-                : "h-[150px] object-cover rounded-t-xl"
+                ? "relative h-[50px] w-[80px] rounded-lg flex-shrink-0 overflow-hidden"
+                : "relative h-[150px] w-full rounded-t-xl overflow-hidden"
             }
-          />
+          >
+            <CoverMedia
+              src={workspace?.coverImage}
+              alt="cover"
+              fill
+              className={isList ? "rounded-lg" : "rounded-t-xl"}
+            />
+          </div>
           <div
             className={
               isList

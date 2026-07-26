@@ -3,7 +3,10 @@ const nextConfig = {
     reactStrictMode:false,
     images: {
         remotePatterns: [
-            { protocol: 'https', hostname: 'img.freepik.com' }
+            // freepik kept for backward-compat with covers saved before the
+            // switch to high-res Unsplash photos.
+            { protocol: 'https', hostname: 'img.freepik.com' },
+            { protocol: 'https', hostname: 'images.unsplash.com' }
         ]
     }
 };
