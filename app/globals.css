@@ -56,6 +56,21 @@ h6.ce-header{
   --lb-foreground-subtle: rgba(255, 255, 255, 0.1);
 }
 
+/* Fully remove the divider/border lines Liveblocks draws around the composer
+   and between notification items in dark mode. Softening --lb-foreground-subtle
+   (above) only made them faint, not gone — they still read as stray white lines
+   on the dark panel. Zero these specific border elements instead (keeping the
+   subtle tone for its other uses: avatars, inline code, hover surfaces).
+   `!important` + the extra `.dark` class guarantee we win over Liveblocks'
+   own rules regardless of cross-bundle load order in the production build. */
+.dark .lb-thread-composer::after,
+.dark .lb-thread-new-indicator::before,
+.dark .lb-thread-new-indicator::after,
+.dark .lb-emoji-picker-header,
+.dark .lb-inbox-notification-list-item {
+  border-color: transparent !important;
+}
+
 /* The floating @-mention / emoji pickers portal to <body>; keep them on top. */
 .lb-portal,
 .lb-elevation,
