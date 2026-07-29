@@ -1,14 +1,15 @@
 "use client";
 import Logo from "@/app/_components/Logo";
 import { db } from "@/config/firebaseConfig";
-import { useAuth, useUser } from "@clerk/nextjs";
+import {
+  useAuth,
+  useUser,
+  OrganizationSwitcher,
+  UserButton,
+} from "@clerk/nextjs";
 import { doc, setDoc } from "firebase/firestore";
 import React, { useEffect } from "react";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
-import {
-  ThemedOrganizationSwitcher,
-  ThemedUserButton,
-} from "@/app/_components/ClerkThemed";
 
 function Header() {
   const { orgId } = useAuth();
@@ -37,14 +38,14 @@ function Header() {
         <Logo />
       </div>
       <div className="flex-1 flex justify-center">
-        <ThemedOrganizationSwitcher
+        <OrganizationSwitcher
           afterCreateOrganizationUrl={"/dashboard"}
           afterLeaveOrganizationUrl={"/dashboard"}
         />
       </div>
       <div className="flex-1 flex justify-end items-center gap-2">
         <ThemeToggle />
-        <ThemedUserButton />
+        <UserButton />
       </div>
     </div>
   );

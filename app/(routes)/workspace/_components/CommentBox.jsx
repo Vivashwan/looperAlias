@@ -14,7 +14,7 @@ function CommentBox() {
     // on the wrapper clips the Composer's @-mention and emoji popovers, which
     // makes them look like they never open.
     <div
-      className="flex w-[320px] max-h-[420px] flex-col overflow-visible
+      className="flex w-[320px] max-w-[calc(100vw-1.5rem)] max-h-[420px] flex-col overflow-visible
         rounded-lg border bg-white dark:bg-gray-900 shadow-lg"
     >
       {threads?.length > 0 && (

@@ -148,7 +148,7 @@ function NotificationBox({ children, params }) {
       </PopoverTrigger>
       {/* Match the Liveblocks card background (#111827 = gray-900) so there are
           no darker gaps/seams showing between cards in dark mode. */}
-      <PopoverContent className="w-[420px] max-h-[70vh] overflow-y-auto p-0 dark:bg-gray-900 dark:border-gray-800">
+      <PopoverContent className="w-[420px] max-w-[calc(100vw-1.5rem)] max-h-[70vh] overflow-y-auto p-0 dark:bg-gray-900 dark:border-gray-800">
         {!roomsResolved ? (
           <div className="flex justify-center py-8">
             <Loader2Icon className="h-5 w-5 animate-spin text-gray-400" />

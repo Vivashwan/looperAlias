@@ -1,8 +1,8 @@
 import { Outfit } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/app/_components/ThemeProvider";
+import { ThemedClerkProvider } from "@/app/_components/ThemedClerkProvider";
 import { FirebaseAuthBridge } from "@/app/_components/FirebaseAuthBridge";
 import "@liveblocks/react-ui/styles.css";
 
@@ -15,18 +15,21 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <ClerkProvider>
-      {/* suppressHydrationWarning: next-themes sets the theme class on <html>
-          before React hydrates, so the server/client class differs by design. */}
-      <html lang="en" suppressHydrationWarning>
-        <body className={inter.className}>
-          <ThemeProvider>
+    // suppressHydrationWarning: next-themes sets the theme class on <html>
+    // before React hydrates, so the server/client class differs by design.
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        {/* ThemeProvider wraps ClerkProvider so the Clerk provider can read the
+            active theme and apply Clerk's dark base theme to every Clerk
+            surface (auth pages, account modal, header widgets) at once. */}
+        <ThemeProvider>
+          <ThemedClerkProvider>
             <FirebaseAuthBridge />
             <Toaster />
             {children}
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+          </ThemedClerkProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   );
 }

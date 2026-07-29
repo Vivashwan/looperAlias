@@ -52,21 +52,21 @@ function WorkspaceList() {
   };
 
   return (
-    <div className="my-10 p-10 md:px-24 lg:px-36 xl:px-52">
-      <div className="flex items-center gap-4">
+    <div className="my-6 p-5 sm:my-10 sm:p-10 md:px-24 lg:px-36 xl:px-52">
+      {/* Stacks on phones (greeting on its own line, then search + button),
+          and sits on one row from `sm` up. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <h2 className="font-bold text-2xl truncate shrink-0">
           Hello, {user?.fullName}
         </h2>
-        {/* flex-1 + justify-center centers the search in the space between
-            the greeting and the + button, rather than hugging either one. */}
-        <div className="flex flex-1 justify-center">
-          <div className="w-full max-w-sm">
+        <div className="flex flex-1 items-center gap-3 sm:justify-center">
+          <div className="w-full sm:max-w-sm">
             <SearchDocuments />
           </div>
+          <Link href={"/createworkspace"} className="shrink-0">
+            <Button>+</Button>
+          </Link>
         </div>
-        <Link href={"/createworkspace"} className="shrink-0">
-          <Button>+</Button>
-        </Link>
       </div>
 
       <div className="mt-10 flex justify-between">
