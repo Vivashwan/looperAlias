@@ -16,6 +16,7 @@ features).
 - [Features](#features)
 - [Tech stack](#tech-stack)
 - [How it works (the flow)](#how-it-works-the-flow)
+- [Architecture & identity flow](#architecture--identity-flow)
 - [Data model](#data-model)
 - [Project structure](#project-structure)
 - [Getting started](#getting-started)
@@ -151,6 +152,51 @@ Document (/workspace/[workspaceid]/[documentid])
 5. **Real-time** — each document is a Liveblocks "room". The client authorizes
    against `/api/liveblocks-auth`, which verifies the room belongs to a
    workspace the user's org owns before granting access.
+
+---
+
+## Architecture & identity flow
+
+Clerk is the single source of truth for identity (user, email, active
+organization). That identity reaches the other two services in two different
+ways — a **server-verified access token** for Liveblocks, and **application-level
+checks** for Firestore.
+
+```mermaid
+flowchart TD
+    U(["User"]) -->|"sign in"| C["Clerk<br/>identity: user, email, org id"]
+
+    C -->|"session"| MW["middleware.js<br/>protects /dashboard and /workspace"]
+    C -->|"session"| LA["/api/liveblocks-auth<br/>(server route)"]
+    C -.->|"org context (app-level)"| B["Browser<br/>Firebase client SDK"]
+
+    LA -->|"resolve room to workspace"| F[("Firestore")]
+    LA -->|"authorize by org, then mint room-scoped token"| L["Liveblocks<br/>presence, comments, notifications"]
+
+    B -->|"read / write · onSnapshot"| F
+    B -->|"realtime channel"| L
+```
+
+**Identity hops:**
+
+1. **Sign-in (Clerk).** Users authenticate with Clerk, which issues a session and
+   exposes `userId`, `email`, and the active `orgId`. `middleware.js` uses it to
+   gate `/dashboard` and `/workspace`.
+2. **Clerk → Liveblocks (server-verified).** When the client opens a room,
+   Liveblocks calls `POST /api/liveblocks-auth`. That route runs on the server,
+   verifies the Clerk session, looks up which **workspace** the room belongs to
+   in Firestore, and mints a **room-scoped** access token only if the
+   workspace's owner matches the caller's org (or email, for personal accounts).
+   The token also carries the user's name/avatar so presence works without an
+   extra lookup.
+3. **Clerk → Firestore (application-level).** The browser talks to Firestore
+   directly through the Firebase client SDK (reads, writes, and `onSnapshot`
+   subscriptions). Access is enforced in the **app layer** using the Clerk org
+   context — opening a document outside your org redirects you out, and
+   notifications for inaccessible documents are filtered. Moving this
+   enforcement down to the database (a Clerk→Firebase token bridge +
+   `firestore.rules`) is scaffolded but not yet deployed — see
+   [Security notes](#security-notes).
 
 ---
 
