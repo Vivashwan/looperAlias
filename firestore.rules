@@ -14,7 +14,8 @@ rules_version = '2';
 //   2. Firebase console → Project settings → Service accounts →
 //      "Generate new private key". Keep the JSON safe.
 //   3. Clerk dashboard → JWT Templates → New template → "Firebase".
-//        - Name it EXACTLY: integration_firebase
+//        - Name it EXACTLY: firebase   (Clerk reserves the "integration_"
+//          prefix, so "integration_firebase" is rejected.)
 //        - Paste the Firebase service-account JSON where prompted.
 //        - Add these claims:
 //            email   →  {{user.primary_email_address}}

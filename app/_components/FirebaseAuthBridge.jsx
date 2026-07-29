@@ -13,6 +13,9 @@ import { app } from "@/config/firebaseConfig";
  * Clerk's "integration_firebase" JWT template and signs the user in, so rules
  * can authorize by identity.
  *
+ * The Clerk JWT template must be named "firebase" (Clerk reserves the
+ * "integration_" prefix, so it can't be called "integration_firebase").
+ *
  * FAIL-SAFE BY DESIGN: if the Clerk template isn't configured yet, this logs a
  * warning and does nothing — the app keeps working under the current (open)
  * rules. Only once this successfully signs in should you deploy firestore.rules.
@@ -30,7 +33,7 @@ export function FirebaseAuthBridge() {
     (async () => {
       try {
         if (isSignedIn) {
-          const token = await getToken({ template: "integration_firebase" });
+          const token = await getToken({ template: "firebase" });
           if (token && !cancelled) {
             await signInWithCustomToken(auth, token);
           }
