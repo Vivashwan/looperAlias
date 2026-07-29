@@ -64,6 +64,9 @@ function RichDocumentEditor({ params }) {
   const editorRef = useRef(null);
   const { user } = useUser();
   const isFetched = useRef(false);
+  // Holds the Firestore onSnapshot unsubscribe so we can stop it on unmount and
+  // avoid a late snapshot rendering into a torn-down editor.
+  const unsubscribeRef = useRef(null);
   const [stats, setStats] = useState({ words: 0, minutes: 0 });
 
   const updateStats = (output) => {
@@ -124,9 +127,23 @@ function RichDocumentEditor({ params }) {
   };
 
   useEffect(() => {
-    if (user) {
-      InitEditor();
-    }
+    if (!user) return;
+    InitEditor();
+    // On unmount (navigating between documents, Fast Refresh) stop the
+    // Firestore listener and tear down the editor, so a late snapshot can't
+    // call render() on a removed editor instance (which throws internally).
+    return () => {
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      const editor = editorRef.current;
+      editorRef.current = null;
+      isFetched.current = false;
+      if (editor) {
+        Promise.resolve(editor.isReady)
+          .then(() => editor.destroy?.())
+          .catch(() => {});
+      }
+    };
   }, [user]);
 
   // Ctrl/Cmd+Z to undo, Ctrl+Y or Ctrl/Cmd+Shift+Z to redo, scoped to the editor.
@@ -179,12 +196,28 @@ function RichDocumentEditor({ params }) {
         ) {
           if (data?.editedBy && data?.output) {
             const parsed = safeBlocks(JSON.parse(data.output));
-            editorRef.current?.render(parsed).then(() => {
-              // Seed history with the loaded content so the first Ctrl+Z has a
-              // baseline to return to instead of an empty editor.
-              if (historyRef.current.length === 0) recordHistory(parsed);
-              updateStats(parsed);
-            });
+            const editor = editorRef.current;
+            if (editor) {
+              // Wait for the editor to finish initialising, then re-check it's
+              // still the current, live instance before rendering. render()
+              // does async DOM work internally, so calling it on an editor that
+              // was torn down (unmount / navigation) while we awaited isReady
+              // throws detached from this chain ("can't access property
+              // querySelector"). Bailing avoids that entirely.
+              Promise.resolve(editor.isReady)
+                .then(() => {
+                  if (editorRef.current !== editor) return;
+                  return editor.render(parsed);
+                })
+                .then(() => {
+                  if (editorRef.current !== editor) return;
+                  // Seed history with the loaded content so the first Ctrl+Z
+                  // has a baseline instead of an empty editor.
+                  if (historyRef.current.length === 0) recordHistory(parsed);
+                  updateStats(parsed);
+                })
+                .catch((err) => console.warn("Skipped editor render:", err));
+            }
           }
           isFetched.current = true;
         }
@@ -204,7 +237,8 @@ function RichDocumentEditor({ params }) {
           });
         },
         onReady: () => {
-          GetDocumentOutput();
+          // Keep the unsubscribe so the unmount cleanup can stop this listener.
+          unsubscribeRef.current = GetDocumentOutput();
         },
         holder: "editorjs",
         tools: {
@@ -401,7 +435,7 @@ function RichDocumentEditor({ params }) {
         {stats.minutes > 0 && ` · ${stats.minutes} min read`}
       </div>
 
-      <div className="fixed bottom-10 left-4 md:left-0 md:ml-80 z-10 flex gap-2">
+      <div className="editor-float-actions fixed bottom-10 left-4 md:left-0 md:ml-80 z-10 flex gap-2">
         <GenerateAITemplate setGenerateAIOutput={handleGenerateAITemplate} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

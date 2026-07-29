@@ -109,6 +109,20 @@ h6.ce-header{
     }
 }
 
+/* On mobile the block-add / convert popover opens as a fixed bottom sheet, but
+   it's trapped inside the toolbar's stacking context (EditorJS puts
+   `will-change` on .ce-toolbar), so no z-index can lift it above the
+   root-level floating buttons — the Generate AI / Export bar and the comment
+   button rendered on top of the open menu. Deterministic fix: while the menu is
+   open (EditorJS marks it with .ce-popover--opened) hide those floating buttons
+   on small screens, so the menu is unobstructed. */
+@media (max-width: 767px) {
+    body:has(.ce-popover--opened) .editor-float-actions,
+    body:has(.ce-popover--opened) .doc-float-comment {
+        display: none !important;
+    }
+}
+
 /* Keep the editor from growing horizontally: constrain widths and wrap text
    so typing flows onto the next line instead of running off to the right. */
 .codex-editor,
